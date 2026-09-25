@@ -16,6 +16,43 @@ RLS permits buyers to read only their own profile, orders, line items, and payme
 
 `create_order` locks inventory, reserves stock, and creates all records atomically. Pay-later orders are confirmed immediately and create packing tasks. Razorpay orders reserve stock immediately, then create packing tasks only after a signed, idempotent `payment.captured` webhook calls the service-role-only confirmation RPC. `cancel_order` is safe to repeat and atomically restocks only non-cancelled, non-fulfilled orders.
 
+## Admin sign-in recovery
+
+An admin who authenticates successfully but sees **Administrator action required** has a valid Supabase session but no usable application profile. This commonly affects accounts created before the `on_auth_user_created` trigger migration was applied. The app deliberately does not create or elevate profiles from the browser or login flow.
+
+In the Supabase dashboard, first confirm the exact account in **Authentication > Users**: verify the email is confirmed, the account is not banned, and copy its UUID. Then run these checks in the SQL editor, substituting the verified UUID:
+
+```sql
+select id, email, email_confirmed_at, confirmed_at, banned_until
+from auth.users
+where id = 'VERIFIED-USER-UUID'::uuid;
+
+select id, role, email, created_at
+from public.profiles
+where id = 'VERIFIED-USER-UUID'::uuid;
+
+select tgname, tgenabled
+from pg_trigger
+where tgrelid = 'auth.users'::regclass
+  and tgname = 'on_auth_user_created';
+```
+
+Apply `supabase/migrations/20260925000000_admin_profile_recovery.sql` if it has not already been run. For a missing profile, only after verifying the UUID belongs to the intended administrator, restore it explicitly:
+
+```sql
+insert into public.profiles (id, role, full_name, email)
+select
+  id,
+  'admin'::public.app_role,
+  coalesce(raw_user_meta_data ->> 'full_name', raw_user_meta_data ->> 'name'),
+  email
+from auth.users
+where id = 'VERIFIED-USER-UUID'::uuid
+on conflict (id) do update set role = excluded.role;
+```
+
+For already functioning administrators, the migration also provides an RLS-respecting server-side recovery RPC: `select public.provision_missing_profile('VERIFIED-USER-UUID'::uuid, 'admin');`. It rejects unauthenticated and non-admin callers and never exposes a service-role key to the app. If the user is not confirmed, resend confirmation from **Authentication > Users** instead of creating a profile.
+
 ## Development
 
 ```bash
