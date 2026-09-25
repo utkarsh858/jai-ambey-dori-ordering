@@ -5,8 +5,11 @@ import { assignManagerToItem, removeManagerFromItem } from "./actions";
 
 export default async function AdminPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const [{ data: profile }, { data: orders }, { data: inventory }, { data: managers }, { data: assignments }] = await Promise.all([
-    supabase.from("profiles").select("role").single(),
+    user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
     supabase.from("orders").select("order_number,status,total_paise,created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),

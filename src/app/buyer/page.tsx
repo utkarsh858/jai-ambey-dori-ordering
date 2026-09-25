@@ -5,8 +5,11 @@ import { signOut } from "@/app/auth/actions";
 
 export default async function BuyerPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const [{ data: profile }, { data: items }, { data: orders }] = await Promise.all([
-    supabase.from("profiles").select("full_name,buyer_code").single(),
+    user ? supabase.from("profiles").select("full_name,buyer_code").eq("id", user.id).single() : { data: null },
     supabase.from("items").select("id,sku,name,unit_price_paise").eq("active", true).order("name"),
     supabase.from("orders").select("order_number,status,total_paise,created_at").order("created_at", { ascending: false }),
   ]);

@@ -5,7 +5,12 @@ import { adjustAssignedInventory } from "./actions";
 
 export default async function ManagerPage() {
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("role,full_name").single();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role,full_name").eq("id", user.id).single()
+    : { data: null };
   if (profile?.role !== "item_manager") redirect("/dashboard");
   const [{ data: tasks }, { data: inventory }] = await Promise.all([
     supabase.from("packing_tasks").select("id,order_number,buyer_code,item_name,quantity,status").order("created_at"),
