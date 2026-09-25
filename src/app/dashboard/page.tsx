@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   
   const { data: profile, error: profileError } = user
-    ? await supabase.from("profiles").select("role").maybeSingle()
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
     : { data: null, error: null };
   
   // Log for debugging
@@ -22,6 +22,8 @@ export default async function DashboardPage() {
       userEmail: user?.email || "NULL",
       authError: authError?.message || null,
       profileError: profileError?.message || null,
+      profileErrorCode: profileError?.code || null,
+      profileErrorDetails: profileError?.details || null,
       profile: profile || "NULL",
     });
   }
