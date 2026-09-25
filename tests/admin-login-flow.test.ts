@@ -54,7 +54,9 @@ describe("Admin login flow after middleware fix", () => {
     });
     
     expect(buggyAccess.kind).toBe("profile-problem");
-    expect(buggyAccess.reason).toBe("profile-unavailable");
+    if (buggyAccess.kind === "profile-problem") {
+      expect(buggyAccess.reason).toBe("profile-unavailable");
+    }
   });
 
   it("should show diagnostic message when profile unavailable (after fix)", () => {
@@ -67,7 +69,9 @@ describe("Admin login flow after middleware fix", () => {
     });
     
     expect(diagnosticAccess.kind).toBe("profile-problem");
-    // User sees access diagnostic with helpful message instead of silent redirect
+    if (diagnosticAccess.kind === "profile-problem") {
+      expect(diagnosticAccess.reason).toBe("profile-unavailable");
+    }
   });
 
   it("should handle missing user gracefully", () => {
