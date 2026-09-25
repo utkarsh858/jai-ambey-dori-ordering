@@ -5,16 +5,39 @@ A Next.js App Router foundation for buyer orders, factory operations, immediate 
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and set the Supabase and Razorpay values.
-2. Create a Supabase project, then run `supabase/migrations/20260923000000_factory_ordering.sql` with the Supabase CLI or SQL editor.
+2. Create a Supabase project, then apply both migrations in filename order with the Supabase CLI (`supabase db push`) or the SQL editor:
+   - `supabase/migrations/20260923000000_factory_ordering.sql`
+   - `supabase/migrations/20260924000000_manager_item_assignments.sql`
 3. In Supabase Auth, enable **Email** (with email confirmation) and **Google**. Add `http://localhost:3000/auth/callback` and the production callback to the redirect allow list.
-4. Set the initial administrator in the SQL editor after creating that user: `update public.profiles set role = 'admin' where email = 'admin@example.com';`. Only an administrator should assign `item_manager` roles and task ownership.
+4. Create administrator, buyer, and manager accounts in **Authentication > Users** (or through the application sign-up flow). After the users are created, run the following exact SQL in the SQL editor, replacing the example emails:
+
+   ```sql
+   -- The signup trigger creates buyer profiles. Make the initial administrator explicit.
+   update public.profiles set role = 'admin' where email = 'admin@example.com';
+
+   -- Buyer accounts must retain the buyer role.
+   update public.profiles set role = 'buyer' where email = 'buyer@example.com';
+
+   -- Promote only factory staff who should adjust assigned inventory and receive packing tasks.
+   update public.profiles set role = 'item_manager' where email = 'manager@example.com';
+
+   -- Assign one or more managers to an item. The UI provides the same admin-only workflow.
+   insert into public.item_manager_assignments (item_id, manager_id)
+   select item.id, manager.id
+   from public.items item
+   join public.profiles manager on manager.email = 'manager@example.com'
+   where item.sku = 'DORI-001'
+   on conflict (item_id, manager_id) do nothing;
+   ```
+
+   Assign managers before accepting orders when possible. New assignments also create tasks for matching already-confirmed orders. The assignment trigger rejects users whose role is not `item_manager`.
 5. Add a Razorpay webhook for `payment.captured` at `/api/payments/razorpay/webhook`; configure its secret as `RAZORPAY_WEBHOOK_SECRET`.
 
 ## Security model
 
-RLS permits buyers to read only their own profile, orders, line items, and payments. Item managers can read and update only assigned `packing_tasks`. They have no policies granting access to profiles, orders, order items, payments, inventory, or audit logs; task rows deliberately snapshot only order number, buyer code, item, and quantity.
+RLS permits buyers to read only their own profile, orders, line items, and payments. Item managers can read only their item assignments, assigned item catalog rows, assigned inventory, and assigned packing tasks. They have no policies granting access to profiles, orders, order items, payments, or audit logs. Packing tasks contain only operational order/item/quantity data plus the buyer's non-contact `buyer_code`; they never contain buyer names, email addresses, phone numbers, or other contact details. Managers cannot update inventory directly: the authenticated `adjust_assigned_inventory` RPC checks their assignment, rejects negative stock, requires a reason, and writes an audit event.
 
-`create_order` locks inventory, reserves stock, and creates all records atomically. Pay-later orders are confirmed immediately and create packing tasks. Razorpay orders reserve stock immediately, then create packing tasks only after a signed, idempotent `payment.captured` webhook calls the service-role-only confirmation RPC. `cancel_order` is safe to repeat and atomically restocks only non-cancelled, non-fulfilled orders.
+`create_order` locks inventory, reserves stock, and creates all records atomically. Pay-later orders are confirmed immediately and create one packing task per assigned manager for each item. Razorpay orders reserve stock immediately, then create those tasks only after a signed, idempotent `payment.captured` webhook calls the service-role-only confirmation RPC. `cancel_order` is safe to repeat and atomically restocks only non-cancelled, non-fulfilled orders.
 
 ## Admin sign-in recovery
 
