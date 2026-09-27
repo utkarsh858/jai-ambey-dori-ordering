@@ -194,7 +194,7 @@ begin
 
   insert into public.orders (id, order_number, buyer_id, buyer_code, status, payment_method, total_paise)
   values (v_order_id, v_order_number, auth.uid(), v_profile.buyer_code,
-    case when p_payment_method = 'pay_later' then 'confirmed' else 'payment_pending' end, p_payment_method, v_total);
+    (case when p_payment_method = 'pay_later' then 'confirmed' else 'payment_pending' end)::public.order_status, p_payment_method, v_total);
   for v_line in select (e->>'item_id')::uuid as item_id, (e->>'quantity')::integer as quantity from jsonb_array_elements(p_lines) e loop
     select * into v_item from public.items where id = v_line.item_id;
     insert into public.order_items (order_id, item_id, sku, item_name, quantity, unit_price_paise)
@@ -206,7 +206,7 @@ begin
   end loop;
   insert into public.payments (order_id, provider, status, amount_paise)
   values (v_order_id, case when p_payment_method = 'razorpay' then 'razorpay' else 'pay_later' end,
-    case when p_payment_method = 'pay_later' then 'not_required' else 'pending' end, v_total);
+    (case when p_payment_method = 'pay_later' then 'not_required' else 'pending' end)::public.payment_status, v_total);
   insert into public.audit_events (actor_id, entity_type, entity_id, action, payload)
   values (auth.uid(), 'order', v_order_id, 'created', jsonb_build_object('payment_method', p_payment_method, 'total_paise', v_total));
   return query select v_order_id, v_order_number, v_total;
