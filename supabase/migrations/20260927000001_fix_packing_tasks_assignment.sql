@@ -54,7 +54,7 @@ begin
     values (v_order_id, v_item.id, v_item.sku, v_item.name, v_line.quantity, v_item.unit_price_paise);
     if p_payment_method = 'pay_later' then
       -- Find an assigned manager for this item
-      select profile_id into v_assigned_manager from public.item_manager_assignments 
+      select manager_id into v_assigned_manager from public.item_manager_assignments 
         where item_id = v_item.id limit 1;
       
       insert into public.packing_tasks (order_id, order_number, buyer_code, item_id, item_name, quantity, assigned_manager_id)
