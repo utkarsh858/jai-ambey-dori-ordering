@@ -5,16 +5,18 @@ import { assignManagerToItem, removeManagerFromItem, markOrderComplete } from ".
 import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
 import { ImageUploader } from "./image-uploader";
+import { EditItemSection } from "./edit-item-section";
 
 export default async function AdminPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: profile }, { data: orders }, { data: inventory }, { data: managers }, { data: assignments }] = await Promise.all([
+  const [{ data: profile }, { data: orders }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }] = await Promise.all([
     user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
     supabase.from("orders").select("id,order_number,status,total_paise,created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
+    supabase.from("items").select("*").eq("active", true).order("name"),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),
     supabase.from("item_manager_assignments").select("item_id,manager_id"),
   ]);
@@ -175,6 +177,8 @@ export default async function AdminPage() {
           <p>No items available to add images to. Add items first.</p>
         )}
       </section>
+
+      <EditItemSection items={allItems ?? []} />
     </main>
   );
 }

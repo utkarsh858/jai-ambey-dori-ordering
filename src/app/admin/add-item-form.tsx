@@ -87,16 +87,11 @@ export function AddItemForm() {
               type="number"
               name="unitPricePaise"
               required
-              placeholder="e.g., 500 for ₹500"
+              placeholder="e.g., 500 or 500.50"
               min="0"
               step="0.01"
-              onChange={(e) => {
-                const rupees = parseFloat(e.currentTarget.value) || 0;
-                const paise = Math.round(rupees * 100);
-                e.currentTarget.value = paise.toString();
-              }}
             />
-            <small>Enter price in Rupees (will be stored in paise)</small>
+            <small>Enter price in Rupees (e.g., 500 for ₹500, or 500.50 for ₹500.50)</small>
           </div>
 
           <button type="submit" disabled={loading} className="primary">
