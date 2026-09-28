@@ -31,7 +31,7 @@ export function LoadingIndicator() {
   return isVisible ? <div className="loading-indicator" /> : null;
 }
 
-export function withLoadingIndicator<T extends any[], R>(
+export function withLoadingIndicator<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>
 ): (...args: T) => Promise<R> {
   return async (...args: T) => {

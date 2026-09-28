@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addItem, addItemImage } from "./actions";
+import { addItem } from "./actions";
 
 export function AddItemForm() {
   const [isOpen, setIsOpen] = useState(false);
