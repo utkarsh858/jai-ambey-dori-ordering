@@ -10,7 +10,7 @@ export default async function BuyerPage() {
   } = await supabase.auth.getUser();
   const [{ data: profile }, { data: items }, { data: orders }] = await Promise.all([
     user ? supabase.from("profiles").select("full_name,buyer_code").eq("id", user.id).single() : { data: null },
-    supabase.from("items").select("id,sku,name,unit_price_paise").eq("active", true).order("name"),
+    supabase.from("items").select("id,sku,name,description,description_full,uom,unit_price_paise").eq("active", true).order("name"),
     supabase.from("orders").select("order_number,status,total_paise,created_at").order("created_at", { ascending: false }),
   ]);
   if (!profile) redirect("/dashboard");

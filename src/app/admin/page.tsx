@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
-import { assignManagerToItem, removeManagerFromItem } from "./actions";
+import { assignManagerToItem, removeManagerFromItem, markOrderComplete } from "./actions";
 import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
 
@@ -12,7 +12,7 @@ export default async function AdminPage() {
   } = await supabase.auth.getUser();
   const [{ data: profile }, { data: orders }, { data: inventory }, { data: managers }, { data: assignments }] = await Promise.all([
     user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
-    supabase.from("orders").select("order_number,status,total_paise,created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("orders").select("id,order_number,status,total_paise,created_at").order("created_at", { ascending: false }).limit(20),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),
     supabase.from("item_manager_assignments").select("item_id,manager_id"),
@@ -69,11 +69,24 @@ export default async function AdminPage() {
           <h2>Recent orders</h2>
           {orders && orders.length > 0 ? (
             orders.map((order) => (
-              <p key={order.order_number}>
-                <strong>{order.order_number}</strong>
-                <br />
-                {order.status} · ₹{(order.total_paise / 100).toFixed(2)}
-              </p>
+              <div key={order.id} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid #eee" }}>
+                <p>
+                  <strong>{order.order_number}</strong>
+                  <br />
+                  <span style={{ color: order.status === "completed" ? "#4caf50" : "#ff9800" }}>
+                    {order.status}
+                  </span>
+                  {" · "}₹{(order.total_paise / 100).toFixed(2)}
+                </p>
+                {order.status !== "completed" && (
+                  <form action={markOrderComplete} style={{ display: "inline" }}>
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <button type="submit" className="small" style={{ fontSize: "0.9rem", padding: "0.5rem 1rem" }}>
+                      Mark complete
+                    </button>
+                  </form>
+                )}
+              </div>
             ))
           ) : (
             <p>No orders yet.</p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addItem } from "./actions";
+import { addItem, addItemImage } from "./actions";
 
 export function AddItemForm() {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,8 +47,38 @@ export function AddItemForm() {
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
-            <label>Description</label>
-            <input type="text" name="description" placeholder="Optional description" maxLength={500} />
+            <label>Description (Single Line)</label>
+            <input type="text" name="description" placeholder="Optional short description" maxLength={500} />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label>Full Description (Multi-line)</label>
+            <textarea 
+              name="descriptionFull" 
+              placeholder="Optional detailed description (supports multiple lines, spaces, and indents)" 
+              maxLength={5000}
+              rows={5}
+              style={{ 
+                fontFamily: "monospace", 
+                whiteSpace: "pre-wrap",
+                width: "100%",
+                padding: "0.5rem",
+                border: "1px solid #ddd",
+                borderRadius: "4px"
+              }} 
+            />
+          </div>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label>Unit of Measurement (UOM) *</label>
+            <input 
+              type="text" 
+              name="uom" 
+              required 
+              placeholder="e.g., piece, meter, kg, liter" 
+              maxLength={50}
+              defaultValue="piece"
+            />
           </div>
 
           <div style={{ marginBottom: "1rem" }}>
@@ -72,6 +102,10 @@ export function AddItemForm() {
           <button type="submit" disabled={loading} className="primary">
             {loading ? "Adding..." : "Add Item"}
           </button>
+
+          <small style={{ display: "block", marginTop: "1rem", color: "#666" }}>
+            Note: Images can be added to this item after creation via the item management interface.
+          </small>
         </form>
       )}
     </>

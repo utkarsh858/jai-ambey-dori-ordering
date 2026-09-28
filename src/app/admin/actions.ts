@@ -13,6 +13,8 @@ const addItemSchema = z.object({
   sku: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   description: z.string().max(500).optional().default(""),
+  descriptionFull: z.string().max(5000).optional().default(""),
+  uom: z.string().min(1).max(50).optional().default("piece"),
   unitPricePaise: z.coerce.number().int().min(0),
 });
 
@@ -53,6 +55,8 @@ export async function addItem(formData: FormData) {
       sku: input.sku,
       name: input.name,
       description: input.description || null,
+      description_full: input.descriptionFull || null,
+      uom: input.uom || "piece",
       unit_price_paise: input.unitPricePaise,
       active: true,
     })
@@ -79,6 +83,30 @@ export async function setInventoryQuantity(formData: FormData) {
     .from("inventory")
     .upsert({ item_id: input.itemId, available_quantity: input.quantity }, { onConflict: "item_id" });
   
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+export async function addItemImage(itemId: string, imageUrl: string, altText: string = "") {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("add_item_image", {
+    p_item_id: itemId,
+    p_image_url: imageUrl,
+    p_alt_text: altText || null,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+}
+
+export async function markOrderComplete(formData: FormData) {
+  const orderId = formData.get("orderId") as string;
+  if (!orderId) throw new Error("Order ID is required");
+  
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_order_complete", {
+    p_order_id: orderId,
+    p_completion_notes: null,
+  });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
 }
