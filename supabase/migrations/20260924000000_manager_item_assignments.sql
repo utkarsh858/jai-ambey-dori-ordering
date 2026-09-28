@@ -289,10 +289,10 @@ begin
     raise exception 'Adjustment would make available stock negative';
   end if;
 
-  update public.inventory
-  set available_quantity = available_quantity + p_quantity_delta,
+  update public.inventory inv
+  set available_quantity = inv.available_quantity + p_quantity_delta,
       updated_at = now()
-  where item_id = p_item_id
+  where inv.item_id = p_item_id
   returning * into v_inventory;
 
   insert into public.audit_events (actor_id, entity_type, entity_id, action, payload)
