@@ -4,6 +4,7 @@ import { signOut } from "@/app/auth/actions";
 import { assignManagerToItem, removeManagerFromItem, markOrderComplete } from "./actions";
 import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
+import { ImageUploader } from "./image-uploader";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -153,6 +154,26 @@ export default async function AdminPage() {
             <p>No items to assign.</p>
           )}
         </article>
+      </section>
+
+      <section style={{ marginTop: "2rem" }}>
+        <h2>Manage item images</h2>
+        {inventory && inventory.length > 0 ? (
+          <div className="grid">
+            {inventory.map((row) => {
+              const item = Array.isArray(row.items) ? row.items[0] : row.items;
+              return (
+                <article className="card" key={row.item_id}>
+                  <h3>{item?.name}</h3>
+                  <small>{item?.sku}</small>
+                  <ImageUploader item={{ id: row.item_id, name: item?.name ?? "Item", sku: item?.sku ?? "N/A" }} />
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p>No items available to add images to. Add items first.</p>
+        )}
       </section>
     </main>
   );
