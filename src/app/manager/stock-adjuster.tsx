@@ -5,9 +5,9 @@ import { adjustAssignedInventory } from "./actions";
 
 interface ManagerStockAdjusterProps {
   itemId: string;
-  _itemName?: string;
-  _itemSku?: string;
-  _currentQuantity?: number;
+  itemName?: string;
+  itemSku?: string;
+  currentQuantity?: number;
 }
 
 export function ManagerStockAdjuster({ itemId }: ManagerStockAdjusterProps) {
