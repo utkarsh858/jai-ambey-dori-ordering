@@ -17,6 +17,7 @@ export function OrderForm({ items }: { items: Item[] }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<"razorpay" | "pay_later">("pay_later");
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"success" | "error">("success");
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   async function submit() {
@@ -28,9 +29,12 @@ export function OrderForm({ items }: { items: Item[] }) {
           .map(([item_id, quantity]) => ({ item_id, quantity }))
       });
       setMessage(order ? `Order ${order.order_number} reserved successfully.` : "Order reserved.");
+      setMessageType("success");
       setQuantities({});
     } catch (error) { 
-      setMessage(error instanceof Error ? error.message : "Unable to place order"); 
+      const errorMsg = error instanceof Error ? error.message : "Unable to place order";
+      setMessage(errorMsg); 
+      setMessageType("error");
     }
   }
 
@@ -107,7 +111,18 @@ export function OrderForm({ items }: { items: Item[] }) {
         </label>
       </fieldset>
       <button onClick={submit}>Reserve stock & place order</button>
-      {message && <p className="notice">{message}</p>}
+      {message && (
+        <p className="notice" style={{
+          backgroundColor: messageType === "error" ? "#ffebee" : "#e8f5e9",
+          color: messageType === "error" ? "#c62828" : "#2e7d32",
+          padding: "1rem",
+          borderRadius: "4px",
+          borderLeft: `4px solid ${messageType === "error" ? "#c62828" : "#2e7d32"}`,
+          marginTop: "1rem"
+        }}>
+          {messageType === "error" ? "❌ " : "✅ "}{message}
+        </p>
+      )}
     </section>
   );
 }
