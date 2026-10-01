@@ -13,7 +13,7 @@ type Item = {
   unit_price_paise: number 
 };
 
-export function OrderForm({ items }: { items: Item[] }) {
+export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap: Map<string, number> }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<"razorpay" | "pay_later">("pay_later");
   const [message, setMessage] = useState("");
@@ -32,7 +32,23 @@ export function OrderForm({ items }: { items: Item[] }) {
       setMessageType("success");
       setQuantities({});
     } catch (error) { 
-      const errorMsg = error instanceof Error ? error.message : "Unable to place order";
+      let errorMsg = error instanceof Error ? error.message : "Unable to place order";
+      
+      // Parse stock error and provide detailed feedback
+      if (errorMsg.includes("Insufficient stock")) {
+        const match = errorMsg.match(/Insufficient stock for (\w+)/);
+        if (match) {
+          const sku = match[1];
+          const item = items.find(i => i.sku === sku);
+          if (item) {
+            const available = inventoryMap.get(item.id) ?? 0;
+            const ordered = quantities[item.id] ?? 0;
+            const overOrdered = ordered - available;
+            errorMsg = `❌ Insufficient stock for ${item.name} (SKU: ${sku})\n\n📊 Stock Details:\n• Available: ${available} units\n• You ordered: ${ordered} units\n• Over-ordered by: ${overOrdered} units\n\nPlease reduce quantity or try again later.`;
+          }
+        }
+      }
+      
       setMessage(errorMsg); 
       setMessageType("error");
     }
@@ -112,16 +128,20 @@ export function OrderForm({ items }: { items: Item[] }) {
       </fieldset>
       <button onClick={submit}>Reserve stock & place order</button>
       {message && (
-        <p className="notice" style={{
+        <div style={{
           backgroundColor: messageType === "error" ? "#ffebee" : "#e8f5e9",
           color: messageType === "error" ? "#c62828" : "#2e7d32",
           padding: "1rem",
           borderRadius: "4px",
           borderLeft: `4px solid ${messageType === "error" ? "#c62828" : "#2e7d32"}`,
-          marginTop: "1rem"
+          marginTop: "1rem",
+          whiteSpace: "pre-wrap",
+          fontFamily: messageType === "error" ? "system-ui, -apple-system, sans-serif" : "inherit",
+          fontSize: "0.95rem",
+          lineHeight: "1.6"
         }}>
-          {messageType === "error" ? "❌ " : "✅ "}{message}
-        </p>
+          {message}
+        </div>
       )}
     </section>
   );
