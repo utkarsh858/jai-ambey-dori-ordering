@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { ActionButton } from "@/components/ActionButton";
 import { ItemCodeButton } from "@/components/ItemCodeButton";
-import { markOrderPacked, markTaskPacked } from "./actions";
+import { markTaskPacked } from "./actions";
 import { ManagerStockAdjuster } from "./stock-adjuster";
 import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
@@ -42,8 +42,6 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
   const imagesByItem = new Map<string, NonNullable<typeof images>>();
   images?.forEach((img) => imagesByItem.set(img.item_id, [...(imagesByItem.get(img.item_id) ?? []), img]));
   const isOpen = (status: string) => status === "queued" || status === "assigned";
-  const openCountByOrder = new Map<string, number>();
-  tasks?.forEach((t) => isOpen(t.status) && openCountByOrder.set(t.order_id, (openCountByOrder.get(t.order_id) ?? 0) + 1));
 
   return (
     <main>
@@ -142,9 +140,6 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
                     {isOpen(task.status) ? (
                       <>
                         <ActionButton label="Mark item packed" busyLabel="Saving..." onAction={markTaskPacked.bind(null, task.id)} />
-                        {(openCountByOrder.get(task.order_id) ?? 0) > 1 && (
-                          <ActionButton className="secondary" label="Mark order packed" busyLabel="Saving..." confirmText={`Mark all your items in order ${task.order_number} as packed?`} onAction={markOrderPacked.bind(null, task.order_id)} />
-                        )}
                       </>
                     ) : "—"}
                   </td>
