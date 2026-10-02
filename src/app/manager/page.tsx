@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { ActionButton } from "@/components/ActionButton";
+import { ItemCodeButton } from "@/components/ItemCodeButton";
+import { markOrderPacked, markTaskPacked } from "./actions";
 import { ManagerStockAdjuster } from "./stock-adjuster";
 import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
@@ -23,7 +26,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
   const [{ data: tasks, count: tasksCount }, { data: inventory }] = await Promise.all([
     supabase
       .from("packing_tasks")
-      .select("id,order_number,buyer_code,item_name,quantity,status,created_at", { count: "exact" })
+      .select("id,order_id,item_id,order_number,buyer_code,item_name,quantity,status,created_at,items(sku)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to),
     supabase
@@ -31,6 +34,16 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
       .select("item_id,available_quantity,reserved_quantity,items(name,sku)")
       .order("item_id"),
   ]);
+
+  const itemIds = [...new Set(tasks?.map((t) => t.item_id) ?? [])];
+  const { data: images } = itemIds.length
+    ? await supabase.from("items_images").select("id,item_id,image_url,alt_text,is_cover").in("item_id", itemIds)
+    : { data: [] };
+  const imagesByItem = new Map<string, NonNullable<typeof images>>();
+  images?.forEach((img) => imagesByItem.set(img.item_id, [...(imagesByItem.get(img.item_id) ?? []), img]));
+  const isOpen = (status: string) => status === "queued" || status === "assigned";
+  const openCountByOrder = new Map<string, number>();
+  tasks?.forEach((t) => isOpen(t.status) && openCountByOrder.set(t.order_id, (openCountByOrder.get(t.order_id) ?? 0) + 1));
 
   return (
     <main>
@@ -100,9 +113,11 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
                 <th>Order</th>
                 <th>Date &amp; time (IST)</th>
                 <th>Buyer code</th>
+                <th>Item code</th>
                 <th>Item</th>
                 <th>Quantity</th>
                 <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -111,14 +126,27 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
                   <td>{task.order_number}</td>
                   <td>{formatIST(task.created_at)}</td>
                   <td>{task.buyer_code}</td>
+                  <td>
+                    <ItemCodeButton sku={(Array.isArray(task.items) ? task.items[0]?.sku : (task.items as { sku?: string } | null)?.sku) ?? "N/A"} itemName={task.item_name} images={imagesByItem.get(task.item_id) ?? []} />
+                  </td>
                   <td>{task.item_name}</td>
                   <td>{task.quantity}</td>
                   <td>
                     <span className="pill" style={{
-                      backgroundColor: task.status === 'completed' ? '#4caf50' : task.status === 'packed' ? '#2196f3' : '#ff9800'
+                      backgroundColor: task.status === 'completed' ? '#4caf50' : task.status === 'packed' ? '#2196f3' : task.status === 'cancelled' ? '#c62828' : '#ff9800'
                     }}>
                       {task.status}
                     </span>
+                  </td>
+                  <td>
+                    {isOpen(task.status) ? (
+                      <>
+                        <ActionButton label="Mark item packed" busyLabel="Saving..." onAction={markTaskPacked.bind(null, task.id)} />
+                        {(openCountByOrder.get(task.order_id) ?? 0) > 1 && (
+                          <ActionButton className="secondary" label="Mark order packed" busyLabel="Saving..." confirmText={`Mark all your items in order ${task.order_number} as packed?`} onAction={markOrderPacked.bind(null, task.order_id)} />
+                        )}
+                      </>
+                    ) : "—"}
                   </td>
                 </tr>
               ))}

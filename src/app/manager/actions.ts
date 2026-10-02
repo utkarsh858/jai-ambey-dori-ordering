@@ -21,3 +21,19 @@ export async function adjustAssignedInventory(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/manager");
 }
+
+export async function markTaskPacked(taskId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_task_packed", { p_task_id: z.uuid().parse(taskId) });
+  if (error) throw new Error(error.message);
+  revalidatePath("/manager");
+  revalidatePath("/admin");
+}
+
+export async function markOrderPacked(orderId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_order_packed", { p_order_id: z.uuid().parse(orderId) });
+  if (error) throw new Error(error.message);
+  revalidatePath("/manager");
+  revalidatePath("/admin");
+}

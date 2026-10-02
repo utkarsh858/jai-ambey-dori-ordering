@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImageModal } from "@/components/ImageModal";
 import { deleteItemImage, setCoverImage, uploadItemImage } from "./actions";
 
 type ItemForImages = { id: string; name: string; sku: string };
@@ -56,8 +57,7 @@ export function ImageUploader({ item, images }: { item: ItemForImages; images: I
   function thumb(image: ItemImage) {
     return (
       <div key={image.id} style={{ width: 110, textAlign: "center" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image.image_url} alt={image.alt_text ?? item.name} style={{ width: 110, height: 110, objectFit: "cover", borderRadius: 4, border: image.is_cover ? "3px solid #2e7d32" : "1px solid #ddd" }} />
+        <ImageModal src={image.image_url} alt={image.alt_text ?? item.name} thumbStyle={{ width: 110, height: 110, border: image.is_cover ? "3px solid #2e7d32" : "1px solid #ddd" }} />
         {image.is_cover && <div style={{ fontSize: "0.75rem", color: "#2e7d32", fontWeight: 700 }}>COVER</div>}
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
           {!image.is_cover && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageModal } from "@/components/ImageModal";
 import { useState } from "react";
 import { createOrder } from "@/app/buyer/actions";
 
@@ -78,8 +79,7 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
           <div key={item.id} className="item-card" style={{ border: "1px solid #ddd", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "1rem" }}>
               {cover && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={cover.image_url} alt={cover.alt_text ?? item.name} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+                <ImageModal src={cover.image_url} alt={cover.alt_text ?? item.name} thumbStyle={{ width: 200, height: 200, flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
                 <strong style={{ fontSize: "1.1rem" }}>{item.name}</strong>
@@ -144,8 +144,7 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
                 {gallery.length > 0 && (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: item.description_full ? "1rem" : 0 }}>
                     {gallery.map((img) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={img.id} src={img.image_url} alt={img.alt_text ?? item.name} style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 4 }} />
+                      <ImageModal key={img.id} src={img.image_url} alt={img.alt_text ?? item.name} thumbStyle={{ width: 140, height: 140 }} />
                     ))}
                   </div>
                 )}

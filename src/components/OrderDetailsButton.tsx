@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export type OrderLine = { item_name: string; sku: string; quantity: number; unit_price_paise: number };
+export type OrderLine = { item_name: string; sku: string; quantity: number; unit_price_paise: number; packed?: boolean };
 export type OrderDetails = {
   order_number: string;
   status: string;
@@ -16,6 +16,7 @@ export type OrderDetails = {
 
 export function OrderDetailsButton({ order }: { order: OrderDetails }) {
   const [open, setOpen] = useState(false);
+  const hasPacking = order.lines.some((l) => l.packed !== undefined);
 
   useEffect(() => {
     if (!open) return;
@@ -59,7 +60,7 @@ export function OrderDetailsButton({ order }: { order: OrderDetails }) {
             </p>
             <table style={{ width: "100%" }}>
               <thead>
-                <tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Subtotal</th></tr>
+                <tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Subtotal</th>{hasPacking && <th>Packed</th>}</tr>
               </thead>
               <tbody>
                 {order.lines.map((line, i) => (
@@ -69,6 +70,9 @@ export function OrderDetailsButton({ order }: { order: OrderDetails }) {
                     <td>{line.quantity}</td>
                     <td>₹{(line.unit_price_paise / 100).toFixed(2)}</td>
                     <td>₹{((line.unit_price_paise * line.quantity) / 100).toFixed(2)}</td>
+                    {hasPacking && (
+                      <td style={{ color: line.packed ? "#2e7d32" : "#c62828", fontWeight: 700 }}>{line.packed ? "✓ Packed" : "✗ Not packed"}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>

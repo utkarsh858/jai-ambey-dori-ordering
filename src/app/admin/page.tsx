@@ -1,16 +1,17 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
-import { assignManagerToItem, removeManagerFromItem, markOrderComplete } from "./actions";
+import { assignManagerToItem, removeManagerFromItem, markOrderComplete, cancelOrderAsAdmin } from "./actions";
 import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
+import { ActionButton } from "@/components/ActionButton";
 import { ImageUploader } from "./image-uploader";
 import { EditItemSection } from "./edit-item-section";
 import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
 import { formatIST } from "@/lib/datetime";
 import { OrderDetailsButton } from "@/components/OrderDetailsButton";
-import { ORDER_COLUMNS, toOrderDetails } from "@/lib/order-details";
+import { ORDER_COLUMNS, toOrderDetails, toOrderDetailsWithPacking } from "@/lib/order-details";
 import { pageRange, parsePage } from "@/lib/pagination";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -34,6 +35,25 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const imagesByItem = new Map<string, NonNullable<typeof images>>();
   images?.forEach((img) => imagesByItem.set(img.item_id, [...(imagesByItem.get(img.item_id) ?? []), img]));
+
+  const orderIds = orders?.map((o) => o.id) ?? [];
+  const { data: packingTasks } = orderIds.length
+    ? await supabase.from("packing_tasks").select("order_id,item_id,status,packed_at").in("order_id", orderIds)
+    : { data: [] };
+  const packedItemsByOrder = new Map<string, Set<string>>();
+  const packStats = new Map<string, { packed: number; total: number }>();
+  packingTasks?.forEach((t) => {
+    if (t.status === "cancelled") return;
+    const stat = packStats.get(t.order_id) ?? { packed: 0, total: 0 };
+    stat.total += 1;
+    if (t.packed_at || t.status === "packed") {
+      stat.packed += 1;
+      const set = packedItemsByOrder.get(t.order_id) ?? new Set<string>();
+      set.add(t.item_id);
+      packedItemsByOrder.set(t.order_id, set);
+    }
+    packStats.set(t.order_id, stat);
+  });
 
   const managerById = new Map(managers?.map((manager) => [manager.id, manager]));
   const assignmentsByItem = new Map<string, string[]>();
@@ -88,16 +108,28 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             orders.map((order) => (
               <div key={order.id} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid #eee" }}>
                 <p>
-                  <OrderDetailsButton order={toOrderDetails(order as never, true)} />
+                  <OrderDetailsButton order={toOrderDetailsWithPacking(order as never, true, packedItemsByOrder.get(order.id) ?? new Set())} />
                   <br />
-                  <span style={{ color: order.status === "completed" ? "#4caf50" : "#ff9800" }}>
+                  <span style={{ color: order.status === "completed" ? "#4caf50" : order.status === "cancelled" ? "#c62828" : "#ff9800" }}>
                     {order.status}
                   </span>
                   {" · "}₹{(order.total_paise / 100).toFixed(2)}
                   <br />
                   <small>Buyer {order.buyer_code} · {formatIST(order.created_at)}</small>
                 </p>
-                {order.status !== "completed" && (
+                {order.status !== "cancelled" && (() => {
+                  const stat = packStats.get(order.id) ?? { packed: 0, total: 0 };
+                  const done = stat.total > 0 && stat.packed === stat.total;
+                  return (
+                    <p style={{ margin: "0 0 0.5rem", fontWeight: 700, color: done ? "#2e7d32" : "#c62828" }} title="Items packed / total items">
+                      Packed: {stat.packed}/{stat.total}
+                    </p>
+                  );
+                })()}
+                {order.status !== "completed" && order.status !== "cancelled" && (
+                  <ActionButton label="Cancel order" busyLabel="Cancelling..." danger confirmText={`Cancel order ${order.order_number}? Stock will be released.`} onAction={cancelOrderAsAdmin.bind(null, order.id)} />
+                )}
+                {order.status !== "completed" && order.status !== "cancelled" && (
                   <form action={markOrderComplete} style={{ display: "inline" }}>
                     <input type="hidden" name="orderId" value={order.id} />
                     <button type="submit" className="small" style={{ fontSize: "0.9rem", padding: "0.5rem 1rem" }}>

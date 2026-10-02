@@ -199,3 +199,12 @@ export async function editItem(formData: FormData) {
   revalidatePath("/admin");
 }
 
+
+export async function cancelOrderAsAdmin(orderId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_order", { p_order_id: z.uuid().parse(orderId), p_reason: "Cancelled by admin" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/buyer");
+  revalidatePath("/manager");
+}
