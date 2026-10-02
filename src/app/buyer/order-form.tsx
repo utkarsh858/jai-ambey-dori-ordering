@@ -2,7 +2,8 @@
 
 import { ImageModal } from "@/components/ImageModal";
 import { useState } from "react";
-import { createOrder } from "@/app/buyer/actions";
+import { useRouter } from "next/navigation";
+import { createOrder, fetchLatestStock } from "@/app/buyer/actions";
 
 type Item = { 
   id: string; 
@@ -16,6 +17,7 @@ type Item = {
 };
 
 export function OrderForm({ items, stock }: { items: Item[]; stock: Record<string, number> }) {
+  const router = useRouter();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<"razorpay" | "pay_later">("pay_later");
   const [message, setMessage] = useState("");
@@ -23,18 +25,23 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   async function submit() {
-    const over = items.filter((i) => (quantities[i.id] ?? 0) > (stock[i.id] ?? 0));
-    if (over.length) {
-      setMessage(over.map((i) => `${i.name}: ordered ${quantities[i.id]}, only ${stock[i.id] ?? 0} available`).join("\n"));
-      setMessageType("error");
-      return;
-    }
     if (!Object.values(quantities).some((q) => q > 0)) {
       setMessage("Select a quantity for at least one item.");
       setMessageType("error");
       return;
     }
     try {
+      const latest = await fetchLatestStock();
+      const over = items.filter((i) => (quantities[i.id] ?? 0) > (latest[i.id] ?? 0));
+      if (over.length) {
+        setMessage(
+          "Your order has more items than the current stock:\n" +
+            over.map((i) => `• ${i.name}: you ordered ${quantities[i.id]}, only ${latest[i.id] ?? 0} available`).join("\n"),
+        );
+        setMessageType("error");
+        router.refresh();
+        return;
+      }
       const order = await createOrder({ 
         paymentMethod: method, 
         lines: Object.entries(quantities)
@@ -44,6 +51,7 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
       setMessage(order ? `Order ${order.order_number} reserved successfully.` : "Order reserved.");
       setMessageType("success");
       setQuantities({});
+      router.refresh();
     } catch (error) { 
       let errorMsg = error instanceof Error ? error.message : "Unable to place order";
       

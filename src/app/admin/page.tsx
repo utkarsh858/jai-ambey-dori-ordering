@@ -1,3 +1,4 @@
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
@@ -63,6 +64,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <main>
+      <AutoRefresh seconds={10} />
       <header>
         <div>
           <p className="eyebrow">ADMIN</p>

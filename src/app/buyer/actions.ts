@@ -58,3 +58,12 @@ export async function cancelOrder(orderId: string) {
     throw new Error("Failed to cancel order");
   }
 }
+
+export async function fetchLatestStock(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_available_stock");
+  if (error) throw new Error("Unable to check current stock. Please try again.");
+  return Object.fromEntries(
+    (data ?? []).map((r: { item_id: string; available_quantity: number }) => [r.item_id, r.available_quantity]),
+  );
+}

@@ -1,3 +1,4 @@
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OrderForm } from "@/app/buyer/order-form";
@@ -32,6 +33,7 @@ export default async function BuyerPage({ searchParams }: { searchParams: Promis
   
   return (
     <main>
+      <AutoRefresh seconds={10} />
       <header>
         <div>
           <p className="eyebrow">BUYER PORTAL</p>
