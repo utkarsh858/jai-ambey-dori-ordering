@@ -16,7 +16,7 @@ begin
       and pt.status::text in ('queued', 'assigned')
       and (
         pt.assigned_manager_id = auth.uid()
-        or exists (
+        or exists ( 
           select 1 from public.item_manager_assignments ima
           where ima.item_id = pt.item_id and ima.manager_id = auth.uid()
         )
