@@ -9,6 +9,8 @@ import { EditItemSection } from "./edit-item-section";
 import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
 import { formatIST } from "@/lib/datetime";
+import { OrderDetailsButton } from "@/components/OrderDetailsButton";
+import { ORDER_COLUMNS, toOrderDetails } from "@/lib/order-details";
 import { pageRange, parsePage } from "@/lib/pagination";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -21,7 +23,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   } = await supabase.auth.getUser();
   const [{ data: profile }, { data: orders, count: ordersCount }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }] = await Promise.all([
     user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
-    supabase.from("orders").select("id,order_number,buyer_code,status,total_paise,created_at", { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
+    supabase.from("orders").select(ORDER_COLUMNS, { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
     supabase.from("items").select("*").eq("active", true).order("name"),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),
@@ -82,7 +84,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             orders.map((order) => (
               <div key={order.id} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid #eee" }}>
                 <p>
-                  <strong>{order.order_number}</strong>
+                  <OrderDetailsButton order={toOrderDetails(order as never, true)} />
                   <br />
                   <span style={{ color: order.status === "completed" ? "#4caf50" : "#ff9800" }}>
                     {order.status}

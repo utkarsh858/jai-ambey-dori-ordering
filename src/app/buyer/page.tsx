@@ -5,6 +5,8 @@ import { signOut } from "@/app/auth/actions";
 import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
 import { formatIST } from "@/lib/datetime";
+import { OrderDetailsButton } from "@/components/OrderDetailsButton";
+import { ORDER_COLUMNS, toOrderDetails } from "@/lib/order-details";
 import { pageRange, parsePage } from "@/lib/pagination";
 
 export default async function BuyerPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -19,7 +21,7 @@ export default async function BuyerPage({ searchParams }: { searchParams: Promis
     user ? supabase.from("profiles").select("full_name,buyer_code").eq("id", user.id).single() : { data: null },
     supabase.from("items").select("id,sku,name,description,description_full,uom,unit_price_paise").eq("active", true).order("name"),
     supabase.rpc("get_available_stock"),
-    supabase.from("orders").select("order_number,status,total_paise,created_at", { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
+    supabase.from("orders").select(ORDER_COLUMNS, { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
   ]);
   if (!profile) redirect("/dashboard");
   
@@ -55,7 +57,7 @@ export default async function BuyerPage({ searchParams }: { searchParams: Promis
           <tbody>
             {orders?.map((order) => (
               <tr key={order.order_number}>
-                <td>{order.order_number}</td>
+                <td><OrderDetailsButton order={toOrderDetails(order as never, false)} /></td>
                 <td>{formatIST(order.created_at)}</td>
                 <td><span className="pill">{order.status.replace("_", " ")}</span></td>
                 <td>₹{(order.total_paise / 100).toFixed(2)}</td>

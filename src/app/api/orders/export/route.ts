@@ -10,6 +10,11 @@ function csvCell(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
+function formatItems(value: unknown): string {
+  const lines = (Array.isArray(value) ? value : []) as { item_name: string; sku: string; quantity: number }[];
+  return lines.map((l) => `${l.item_name} (${l.sku}) x ${l.quantity}`).join("; ");
+}
+
 export async function GET(request: Request) {
   const from = new URL(request.url).searchParams.get("from") ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) {
@@ -30,8 +35,8 @@ export async function GET(request: Request) {
   let columns: string;
   if (role === "admin" || role === "buyer") {
     table = "orders";
-    columns = "order_number,buyer_code,status,payment_method,total_paise,created_at";
-    header = ["Order number", "Buyer code", "Status", "Payment method", "Total (INR)", "Date & time (IST)"];
+    columns = "order_number,buyer_code,status,payment_method,total_paise,created_at,order_items(item_name,sku,quantity)";
+    header = ["Order number", "Buyer code", "Status", "Payment method", "Total (INR)", "Items (name x quantity)", "Date & time (IST)"];
   } else if (role === "item_manager") {
     table = "packing_tasks";
     columns = "order_number,buyer_code,item_name,quantity,status,created_at";
@@ -60,7 +65,7 @@ export async function GET(request: Request) {
   for (const row of rows) {
     const cells =
       table === "orders"
-        ? [row.order_number, row.buyer_code, row.status, row.payment_method, (Number(row.total_paise) / 100).toFixed(2), formatIST(row.created_at as string)]
+        ? [row.order_number, row.buyer_code, row.status, row.payment_method, (Number(row.total_paise) / 100).toFixed(2), formatItems(row.order_items), formatIST(row.created_at as string)]
         : [row.order_number, row.buyer_code, row.item_name, row.quantity, row.status, formatIST(row.created_at as string)];
     lines.push(cells.map(csvCell).join(","));
   }
