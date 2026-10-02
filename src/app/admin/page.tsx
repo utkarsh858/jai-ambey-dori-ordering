@@ -11,7 +11,7 @@ import { Pagination } from "@/components/Pagination";
 import { ExportOrders } from "@/components/ExportOrders";
 import { formatIST } from "@/lib/datetime";
 import { OrderDetailsButton } from "@/components/OrderDetailsButton";
-import { ORDER_COLUMNS, toOrderDetails, toOrderDetailsWithPacking } from "@/lib/order-details";
+import { ORDER_COLUMNS, toOrderDetailsWithPacking } from "@/lib/order-details";
 import { pageRange, parsePage } from "@/lib/pagination";
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
