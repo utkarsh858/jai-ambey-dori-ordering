@@ -1,116 +1,109 @@
 "use client";
 
 import { useState } from "react";
-import { addItemImage, uploadItemImage } from "./actions";
+import { useRouter } from "next/navigation";
+import { deleteItemImage, setCoverImage, uploadItemImage } from "./actions";
 
 type ItemForImages = { id: string; name: string; sku: string };
+export type ItemImage = { id: string; image_url: string; alt_text: string | null; is_cover: boolean };
 
-export function ImageUploader({ item }: { item: ItemForImages }) {
-  const [uploadMode, setUploadMode] = useState<"url" | "file">("url");
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [altText, setAltText] = useState("");
+export function ImageUploader({ item, images }: { item: ItemForImages; images: ItemImage[] }) {
+  const router = useRouter();
+  const [imageType, setImageType] = useState<"cover" | "gallery">("gallery");
   const [loading, setLoading] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const cover = images.find((i) => i.is_cover);
+  const gallery = images.filter((i) => !i.is_cover);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setError(null);
-    setSuccess(false);
+    setSuccess(null);
     setLoading(true);
-
     try {
-      if (uploadMode === "url") {
-        if (!imageUrl.trim()) {
-          throw new Error("Image URL is required");
-        }
-        await addItemImage(item.id, imageUrl, altText);
-      } else {
-        if (!imageFile) {
-          throw new Error("Please select an image file");
-        }
-        await uploadItemImage(item.id, imageFile, altText);
-      }
-      
-      setImageUrl("");
-      setImageFile(null);
-      setAltText("");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      const data = new FormData(form);
+      data.set("itemId", item.id);
+      data.set("imageType", imageType);
+      await uploadItemImage(data);
+      form.reset();
+      setSuccess(imageType === "cover" ? "Cover image updated" : "Gallery image added");
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add image");
+      setError(err instanceof Error ? err.message : "Failed to upload image");
     } finally {
       setLoading(false);
     }
   }
 
+  async function run(id: string, action: () => Promise<void>, ok: string) {
+    setError(null);
+    setSuccess(null);
+    setBusyId(id);
+    try {
+      await action();
+      setSuccess(ok);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function thumb(image: ItemImage) {
+    return (
+      <div key={image.id} style={{ width: 110, textAlign: "center" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image.image_url} alt={image.alt_text ?? item.name} style={{ width: 110, height: 110, objectFit: "cover", borderRadius: 4, border: image.is_cover ? "3px solid #2e7d32" : "1px solid #ddd" }} />
+        {image.is_cover && <div style={{ fontSize: "0.75rem", color: "#2e7d32", fontWeight: 700 }}>COVER</div>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+          {!image.is_cover && (
+            <button type="button" className="secondary" disabled={busyId === image.id} style={{ fontSize: "0.75rem", padding: "0.25rem" }} onClick={() => run(image.id, () => setCoverImage(image.id), "Cover image updated")}>
+              Make cover
+            </button>
+          )}
+          <button
+            type="button"
+            className="secondary"
+            disabled={busyId === image.id}
+            style={{ fontSize: "0.75rem", padding: "0.25rem", color: "#c62828" }}
+            onClick={() => window.confirm("Remove this image permanently?") && run(image.id, () => deleteItemImage(image.id), "Image removed")}
+          >
+            {busyId === image.id ? "Working..." : "Remove"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: "1rem", padding: "1rem", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
-      <p style={{ fontSize: "0.9rem", margin: "0 0 1rem 0" }}>
-        <strong>Add image to {item.name}</strong>
-      </p>
-      
-      {error && <p style={{ color: "#d32f2f", marginBottom: "1rem", fontSize: "0.9rem" }}>{error}</p>}
-      {success && <p style={{ color: "#4caf50", marginBottom: "1rem", fontSize: "0.9rem" }}>✓ Image added successfully</p>}
+    <div style={{ marginTop: "1rem" }}>
+      <p style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}><strong>Cover image</strong> (shown in the buyer's item list)</p>
+      {cover ? <div style={{ display: "flex" }}>{thumb(cover)}</div> : <p style={{ color: "#777", fontSize: "0.9rem" }}>No cover image yet.</p>}
 
-      <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", borderBottom: "1px solid #ddd", paddingBottom: "1rem" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-          <input
-            type="radio"
-            checked={uploadMode === "url"}
-            onChange={() => setUploadMode("url")}
-          />
-          From URL
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-          <input
-            type="radio"
-            checked={uploadMode === "file"}
-            onChange={() => setUploadMode("file")}
-          />
-          From device
-        </label>
-      </div>
+      <p style={{ fontSize: "0.9rem", margin: "1rem 0 0.5rem" }}><strong>Gallery images</strong> (shown under "Show details")</p>
+      {gallery.length ? <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>{gallery.map(thumb)}</div> : <p style={{ color: "#777", fontSize: "0.9rem" }}>No gallery images yet.</p>}
 
-      {uploadMode === "url" ? (
-        <div style={{ marginBottom: "0.75rem" }}>
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="Image URL (e.g., https://example.com/image.jpg)"
-            required
-            style={{ width: "100%", padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
-          />
+      <form onSubmit={handleSubmit} style={{ marginTop: "1rem", padding: "1rem", backgroundColor: "#f5f5f5", borderRadius: 4 }}>
+        <p style={{ fontSize: "0.9rem", margin: "0 0 0.75rem" }}><strong>Upload image for {item.name}</strong></p>
+        {error && <p style={{ color: "#d32f2f", fontSize: "0.9rem" }}>{error}</p>}
+        {success && <p style={{ color: "#4caf50", fontSize: "0.9rem" }}>✓ {success}</p>}
+        <div style={{ display: "flex", gap: "1rem", marginBottom: "0.75rem" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <input type="radio" checked={imageType === "cover"} onChange={() => setImageType("cover")} /> Cover (replaces current)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <input type="radio" checked={imageType === "gallery"} onChange={() => setImageType("gallery")} /> Gallery
+          </label>
         </div>
-      ) : (
-        <div style={{ marginBottom: "0.75rem" }}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            required
-            style={{ width: "100%", padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
-          />
-          <small style={{ color: "#666" }}>Supported: JPG, PNG, GIF, WebP (max 5MB)</small>
-        </div>
-      )}
-
-      <div style={{ marginBottom: "0.75rem" }}>
-        <input
-          type="text"
-          value={altText}
-          onChange={(e) => setAltText(e.target.value)}
-          placeholder="Alt text (optional, e.g., 'Product photo')"
-          maxLength={200}
-          style={{ width: "100%", padding: "0.5rem", border: "1px solid #ddd", borderRadius: "4px" }}
-        />
-      </div>
-
-      <button type="submit" disabled={loading} style={{ padding: "0.5rem 1rem", fontSize: "0.9rem" }}>
-        {loading ? "Adding..." : "Add Image"}
-      </button>
-    </form>
+        <input type="file" name="file" accept="image/*" required style={{ width: "100%", marginBottom: "0.5rem" }} />
+        <small style={{ color: "#666" }}>JPG, PNG, GIF, WebP (max 4MB)</small>
+        <input type="text" name="altText" placeholder="Alt text (optional)" maxLength={200} style={{ width: "100%", margin: "0.5rem 0" }} />
+        <button type="submit" disabled={loading}>{loading ? "Uploading..." : "Upload image"}</button>
+      </form>
+    </div>
   );
 }

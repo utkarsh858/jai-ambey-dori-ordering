@@ -19,7 +19,7 @@ export default async function BuyerPage({ searchParams }: { searchParams: Promis
   } = await supabase.auth.getUser();
   const [{ data: profile }, { data: items }, { data: inventory }, { data: orders, count: ordersCount }] = await Promise.all([
     user ? supabase.from("profiles").select("full_name,buyer_code").eq("id", user.id).single() : { data: null },
-    supabase.from("items").select("id,sku,name,description,description_full,uom,unit_price_paise").eq("active", true).order("name"),
+    supabase.from("items").select("id,sku,name,description,description_full,uom,unit_price_paise,items_images(id,image_url,alt_text,is_cover,display_order)").eq("active", true).order("name"),
     supabase.rpc("get_available_stock"),
     supabase.from("orders").select(ORDER_COLUMNS, { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
   ]);

@@ -10,7 +10,8 @@ type Item = {
   description?: string | null;
   description_full?: string | null;
   uom?: string | null;
-  unit_price_paise: number 
+  unit_price_paise: number;
+  items_images?: { id: string; image_url: string; alt_text: string | null; is_cover: boolean; display_order: number | null }[] | null;
 };
 
 export function OrderForm({ items, stock }: { items: Item[]; stock: Record<string, number> }) {
@@ -69,9 +70,17 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
     <section className="card">
       <h2>New order</h2>
       <div className="stack">
-        {items.map((item) => (
+        {items.map((item) => {
+          const images = [...(item.items_images ?? [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+          const cover = images.find((i) => i.is_cover);
+          const gallery = images.filter((i) => !i.is_cover);
+          return (
           <div key={item.id} className="item-card" style={{ border: "1px solid #ddd", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "1rem" }}>
+              {cover && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={cover.image_url} alt={cover.alt_text ?? item.name} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 4, flexShrink: 0 }} />
+              )}
               <div style={{ flex: 1 }}>
                 <strong style={{ fontSize: "1.1rem" }}>{item.name}</strong>
                 <div style={{ marginTop: "0.5rem", color: "#666", fontSize: "0.9rem" }}>
@@ -86,7 +95,7 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
                     {item.description}
                   </div>
                 )}
-                {item.description_full && (
+                {(item.description_full || gallery.length > 0) && (
                   <button
                     type="button"
                     onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
@@ -121,7 +130,7 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
                 style={{ width: "5rem" }}
               />
             </div>
-            {expandedItem === item.id && item.description_full && (
+            {expandedItem === item.id && (item.description_full || gallery.length > 0) && (
               <div style={{
                 marginTop: "1rem",
                 paddingTop: "1rem",
@@ -132,11 +141,20 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
                 color: "#555",
                 lineHeight: "1.5"
               }}>
+                {gallery.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: item.description_full ? "1rem" : 0 }}>
+                    {gallery.map((img) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={img.id} src={img.image_url} alt={img.alt_text ?? item.name} style={{ width: 140, height: 140, objectFit: "cover", borderRadius: 4 }} />
+                    ))}
+                  </div>
+                )}
                 {item.description_full}
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
       <fieldset>
         <legend>Payment</legend>

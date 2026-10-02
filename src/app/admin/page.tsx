@@ -21,15 +21,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: profile }, { data: orders, count: ordersCount }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }] = await Promise.all([
+  const [{ data: profile }, { data: orders, count: ordersCount }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }, { data: images }] = await Promise.all([
     user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
     supabase.from("orders").select(ORDER_COLUMNS, { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
     supabase.from("items").select("*").eq("active", true).order("name"),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),
     supabase.from("item_manager_assignments").select("item_id,manager_id"),
+    supabase.from("items_images").select("id,item_id,image_url,alt_text,is_cover,display_order").order("display_order"),
   ]);
   if (profile?.role !== "admin") redirect("/dashboard");
+
+  const imagesByItem = new Map<string, NonNullable<typeof images>>();
+  images?.forEach((img) => imagesByItem.set(img.item_id, [...(imagesByItem.get(img.item_id) ?? []), img]));
 
   const managerById = new Map(managers?.map((manager) => [manager.id, manager]));
   const assignmentsByItem = new Map<string, string[]>();
@@ -181,7 +185,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 <article className="card" key={row.item_id}>
                   <h3>{item?.name}</h3>
                   <small>{item?.sku}</small>
-                  <ImageUploader item={{ id: row.item_id, name: item?.name ?? "Item", sku: item?.sku ?? "N/A" }} />
+                  <ImageUploader item={{ id: row.item_id, name: item?.name ?? "Item", sku: item?.sku ?? "N/A" }} images={imagesByItem.get(row.item_id) ?? []} />
                 </article>
               );
             })}

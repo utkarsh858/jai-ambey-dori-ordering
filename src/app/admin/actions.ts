@@ -100,51 +100,67 @@ export async function setInventoryQuantity(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function addItemImage(itemId: string, imageUrl: string, altText: string = "") {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("add_item_image", {
-    p_item_id: itemId,
-    p_image_url: imageUrl,
-    p_alt_text: altText || null,
-  });
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin");
-}
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const BUCKET = "item-images";
 
-export async function uploadItemImage(itemId: string, file: File, altText: string = "") {
+export async function uploadItemImage(formData: FormData) {
+  const itemId = z.uuid().parse(formData.get("itemId"));
+  const isCover = formData.get("imageType") === "cover";
+  const altText = String(formData.get("altText") ?? "").slice(0, 200);
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) throw new Error("No file selected");
+  if (!file.type.startsWith("image/")) throw new Error("Only image files are allowed");
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("Image must be smaller than 4MB");
+
   const supabase = await createClient();
-  
-  // Validate file
-  if (!file) throw new Error("No file selected");
-  if (file.size > 5 * 1024 * 1024) throw new Error("File size must be less than 5MB");
-  
-  // Create unique filename
-  const timestamp = Date.now();
-  const randomId = Math.random().toString(36).substring(7);
-  const filename = `${itemId}/${timestamp}-${randomId}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "")}`;
-  
-  // Upload to storage
-  const { error: uploadError } = await supabase.storage
-    .from("item-images")
-    .upload(filename, file, { upsert: false });
-  
+  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "");
+  const path = `${itemId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type });
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-  
-  // Get public URL
-  const { data: publicUrl } = supabase.storage
-    .from("item-images")
-    .getPublicUrl(filename);
-  
-  // Add image record to database
+
+  const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(path);
   const { error: dbError } = await supabase.rpc("add_item_image", {
     p_item_id: itemId,
     p_image_url: publicUrl.publicUrl,
+    p_storage_path: path,
     p_alt_text: altText || null,
+    p_is_cover: isCover,
   });
-  
-  if (dbError) throw new Error(`Failed to save image record: ${dbError.message}`);
-  
+  if (dbError) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    throw new Error(`Failed to save image: ${dbError.message}`);
+  }
+
   revalidatePath("/admin");
+  revalidatePath("/buyer");
+}
+
+export async function setCoverImage(imageId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_cover_image", { p_image_id: z.uuid().parse(imageId) });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/buyer");
+}
+
+export async function deleteItemImage(imageId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("items_images")
+    .delete()
+    .eq("id", z.uuid().parse(imageId))
+    .select("image_url,storage_path");
+  if (error) throw new Error(error.message);
+  const removed = data?.[0];
+  if (!removed) throw new Error("Image not found or not permitted");
+
+  const path = removed.storage_path ?? removed.image_url.split(`/${BUCKET}/`)[1];
+  if (path) await supabase.storage.from(BUCKET).remove([decodeURIComponent(path)]);
+
+  revalidatePath("/admin");
+  revalidatePath("/buyer");
 }
 
 export async function markOrderComplete(formData: FormData) {
