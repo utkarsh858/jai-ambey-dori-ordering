@@ -81,10 +81,10 @@ export function ImageUploader({ item, images }: { item: ItemForImages; images: I
 
   return (
     <div style={{ marginTop: "1rem" }}>
-      <p style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}><strong>Cover image</strong> (shown in the buyer's item list)</p>
+      <p style={{ fontSize: "0.9rem", margin: "0 0 0.5rem" }}><strong>Cover image</strong> (shown in the buyer item list)</p>
       {cover ? <div style={{ display: "flex" }}>{thumb(cover)}</div> : <p style={{ color: "#777", fontSize: "0.9rem" }}>No cover image yet.</p>}
 
-      <p style={{ fontSize: "0.9rem", margin: "1rem 0 0.5rem" }}><strong>Gallery images</strong> (shown under "Show details")</p>
+      <p style={{ fontSize: "0.9rem", margin: "1rem 0 0.5rem" }}><strong>Gallery images</strong> (shown under Show details)</p>
       {gallery.length ? <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>{gallery.map(thumb)}</div> : <p style={{ color: "#777", fontSize: "0.9rem" }}>No gallery images yet.</p>}
 
       <form onSubmit={handleSubmit} style={{ marginTop: "1rem", padding: "1rem", backgroundColor: "#f5f5f5", borderRadius: 4 }}>
