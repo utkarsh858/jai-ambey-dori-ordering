@@ -3,7 +3,7 @@
 
 CREATE OR REPLACE FUNCTION public.create_order(p_lines jsonb, p_payment_method public.payment_method)
 RETURNS TABLE(order_id uuid, order_number text, total_paise integer)
-LANGUAGE plpgsql
+LANGUAGE plpgsql 
 SECURITY DEFINER
 SET search_path = public
 AS $$
