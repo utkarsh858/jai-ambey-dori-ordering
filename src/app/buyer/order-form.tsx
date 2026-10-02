@@ -13,7 +13,7 @@ type Item = {
   unit_price_paise: number 
 };
 
-export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap: Map<string, number> }) {
+export function OrderForm({ items, stock }: { items: Item[]; stock: Record<string, number> }) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<"razorpay" | "pay_later">("pay_later");
   const [message, setMessage] = useState("");
@@ -21,6 +21,17 @@ export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   async function submit() {
+    const over = items.filter((i) => (quantities[i.id] ?? 0) > (stock[i.id] ?? 0));
+    if (over.length) {
+      setMessage(over.map((i) => `${i.name}: ordered ${quantities[i.id]}, only ${stock[i.id] ?? 0} available`).join("\n"));
+      setMessageType("error");
+      return;
+    }
+    if (!Object.values(quantities).some((q) => q > 0)) {
+      setMessage("Select a quantity for at least one item.");
+      setMessageType("error");
+      return;
+    }
     try {
       const order = await createOrder({ 
         paymentMethod: method, 
@@ -41,7 +52,7 @@ export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap
           const sku = match[1];
           const item = items.find(i => i.sku === sku);
           if (item) {
-            const available = inventoryMap.get(item.id) ?? 0;
+            const available = stock[item.id] ?? 0;
             const ordered = quantities[item.id] ?? 0;
             const overOrdered = ordered - available;
             errorMsg = `❌ Insufficient stock for ${item.name} (SKU: ${sku})\n\n📊 Stock Details:\n• Available: ${available} units\n• You ordered: ${ordered} units\n• Over-ordered by: ${overOrdered} units\n\nPlease reduce quantity or try again later.`;
@@ -66,6 +77,9 @@ export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap
                 <div style={{ marginTop: "0.5rem", color: "#666", fontSize: "0.9rem" }}>
                   {item.sku} · ₹{(item.unit_price_paise / 100).toFixed(2)}
                   {item.uom && <span> · {item.uom}</span>}
+                </div>
+                <div style={{ marginTop: "0.25rem", fontSize: "0.9rem", fontWeight: 600, color: (stock[item.id] ?? 0) > 0 ? "#2e7d32" : "#c62828" }}>
+                  {(stock[item.id] ?? 0) > 0 ? `Available: ${stock[item.id]}${item.uom ? ` ${item.uom}` : ""}` : "Out of stock"}
                 </div>
                 {item.description && (
                   <div style={{ marginTop: "0.5rem", color: "#777", fontSize: "0.9rem" }}>
@@ -95,8 +109,15 @@ export function OrderForm({ items, inventoryMap }: { items: Item[], inventoryMap
                 aria-label={`Quantity for ${item.name}`} 
                 type="number" 
                 min="0" 
+                max={stock[item.id] ?? 0}
+                step="1"
+                disabled={(stock[item.id] ?? 0) <= 0}
                 value={quantities[item.id] ?? 0} 
-                onChange={(e) => setQuantities({ ...quantities, [item.id]: Number(e.target.value) })}
+                onChange={(e) => {
+                  const max = stock[item.id] ?? 0;
+                  const value = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                  setQuantities({ ...quantities, [item.id]: Math.min(value, max) });
+                }}
                 style={{ width: "5rem" }}
               />
             </div>

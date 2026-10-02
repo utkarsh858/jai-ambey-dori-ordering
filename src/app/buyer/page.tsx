@@ -11,14 +11,14 @@ export default async function BuyerPage() {
   const [{ data: profile }, { data: items }, { data: inventory }, { data: orders }] = await Promise.all([
     user ? supabase.from("profiles").select("full_name,buyer_code").eq("id", user.id).single() : { data: null },
     supabase.from("items").select("id,sku,name,description,description_full,uom,unit_price_paise").eq("active", true).order("name"),
-    supabase.from("inventory").select("item_id,available_quantity").order("item_id"),
+    supabase.rpc("get_available_stock"),
     supabase.from("orders").select("order_number,status,total_paise,created_at").order("created_at", { ascending: false }),
   ]);
   if (!profile) redirect("/dashboard");
   
   // Create inventory map for easy lookup
-  const inventoryMap = new Map(
-    (inventory ?? []).map(inv => [inv.item_id, inv.available_quantity])
+  const stock: Record<string, number> = Object.fromEntries(
+    (inventory ?? []).map((inv: { item_id: string; available_quantity: number }) => [inv.item_id, inv.available_quantity])
   );
   
   return (
@@ -32,7 +32,7 @@ export default async function BuyerPage() {
           <button className="secondary">Sign out</button>
         </form>
       </header>
-      <OrderForm items={items ?? []} inventoryMap={inventoryMap} />
+      <OrderForm items={items ?? []} stock={stock} />
       <section className="card">
         <h2>Your orders</h2>
         <table>
