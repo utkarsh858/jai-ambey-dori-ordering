@@ -6,15 +6,22 @@ import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
 import { ImageUploader } from "./image-uploader";
 import { EditItemSection } from "./edit-item-section";
+import { Pagination } from "@/components/Pagination";
+import { ExportOrders } from "@/components/ExportOrders";
+import { formatIST } from "@/lib/datetime";
+import { pageRange, parsePage } from "@/lib/pagination";
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const page = parsePage(params.page);
+  const { from, to } = pageRange(page);
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: profile }, { data: orders }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }] = await Promise.all([
+  const [{ data: profile }, { data: orders, count: ordersCount }, { data: inventory }, { data: allItems }, { data: managers }, { data: assignments }] = await Promise.all([
     user ? supabase.from("profiles").select("role").eq("id", user.id).single() : { data: null, error: null },
-    supabase.from("orders").select("id,order_number,status,total_paise,created_at").order("created_at", { ascending: false }).limit(20),
+    supabase.from("orders").select("id,order_number,buyer_code,status,total_paise,created_at", { count: "exact" }).order("created_at", { ascending: false }).range(from, to),
     supabase.from("inventory").select("item_id,available_quantity,reserved_quantity,items(name,sku)").limit(50),
     supabase.from("items").select("*").eq("active", true).order("name"),
     supabase.from("profiles").select("id,full_name,email").eq("role", "item_manager").order("full_name"),
@@ -69,7 +76,8 @@ export default async function AdminPage() {
         </article>
 
         <article className="card">
-          <h2>Recent orders</h2>
+          <h2>All orders</h2>
+          <ExportOrders />
           {orders && orders.length > 0 ? (
             orders.map((order) => (
               <div key={order.id} style={{ marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "1px solid #eee" }}>
@@ -80,6 +88,8 @@ export default async function AdminPage() {
                     {order.status}
                   </span>
                   {" · "}₹{(order.total_paise / 100).toFixed(2)}
+                  <br />
+                  <small>Buyer {order.buyer_code} · {formatIST(order.created_at)}</small>
                 </p>
                 {order.status !== "completed" && (
                   <form action={markOrderComplete} style={{ display: "inline" }}>
@@ -94,6 +104,7 @@ export default async function AdminPage() {
           ) : (
             <p>No orders yet.</p>
           )}
+          <Pagination page={page} total={ordersCount ?? 0} param="page" searchParams={params} basePath="/admin" />
         </article>
 
         <article className="card">

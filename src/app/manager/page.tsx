@@ -2,8 +2,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
 import { ManagerStockAdjuster } from "./stock-adjuster";
+import { Pagination } from "@/components/Pagination";
+import { ExportOrders } from "@/components/ExportOrders";
+import { formatIST } from "@/lib/datetime";
+import { pageRange, parsePage } from "@/lib/pagination";
 
-export default async function ManagerPage() {
+export default async function ManagerPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const page = parsePage(params.page);
+  const { from, to } = pageRange(page);
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,11 +20,12 @@ export default async function ManagerPage() {
     : { data: null };
   if (profile?.role !== "item_manager") redirect("/dashboard");
 
-  const [{ data: tasks }, { data: inventory }] = await Promise.all([
+  const [{ data: tasks, count: tasksCount }, { data: inventory }] = await Promise.all([
     supabase
       .from("packing_tasks")
-      .select("id,order_number,buyer_code,item_name,quantity,status")
-      .order("created_at"),
+      .select("id,order_number,buyer_code,item_name,quantity,status,created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to),
     supabase
       .from("inventory")
       .select("item_id,available_quantity,reserved_quantity,items(name,sku)")
@@ -84,11 +92,13 @@ export default async function ManagerPage() {
 
       <section className="card">
         <h2>Assigned packing tasks</h2>
+        <ExportOrders />
         {tasks?.length ? (
           <table>
             <thead>
               <tr>
                 <th>Order</th>
+                <th>Date &amp; time (IST)</th>
                 <th>Buyer code</th>
                 <th>Item</th>
                 <th>Quantity</th>
@@ -99,6 +109,7 @@ export default async function ManagerPage() {
               {tasks.map((task) => (
                 <tr key={task.id}>
                   <td>{task.order_number}</td>
+                  <td>{formatIST(task.created_at)}</td>
                   <td>{task.buyer_code}</td>
                   <td>{task.item_name}</td>
                   <td>{task.quantity}</td>
@@ -116,6 +127,7 @@ export default async function ManagerPage() {
         ) : (
           <p>No packing tasks are assigned to you.</p>
         )}
+        <Pagination page={page} total={tasksCount ?? 0} param="page" searchParams={params} basePath="/manager" />
       </section>
     </main>
   );
