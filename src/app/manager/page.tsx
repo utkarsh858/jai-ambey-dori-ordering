@@ -2,6 +2,8 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { StageBadge } from "@/components/StageBadge";
+import { itemStage } from "@/lib/stages";
 import { ActionButton } from "@/components/ActionButton";
 import { ItemCodeButton } from "@/components/ItemCodeButton";
 import { markTaskPacked } from "./actions";
@@ -27,7 +29,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
   const [{ data: tasks, count: tasksCount }, { data: inventory }] = await Promise.all([
     supabase
       .from("packing_tasks")
-      .select("id,order_id,item_id,order_number,buyer_code,item_name,quantity,status,created_at,items(sku)", { count: "exact" })
+      .select("id,order_id,item_id,order_stage,order_number,buyer_code,item_name,quantity,status,created_at,items(sku)", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to),
     supabase
@@ -116,7 +118,7 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
                 <th>Item code</th>
                 <th>Item</th>
                 <th>Quantity</th>
-                <th>Status</th>
+                <th>Stage</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -132,14 +134,16 @@ export default async function ManagerPage({ searchParams }: { searchParams: Prom
                   <td>{task.item_name}</td>
                   <td>{task.quantity}</td>
                   <td>
-                    <span className="pill" style={{
-                      backgroundColor: task.status === 'completed' ? '#4caf50' : task.status === 'packed' ? '#2196f3' : task.status === 'cancelled' ? '#c62828' : '#ff9800'
-                    }}>
-                      {task.status}
-                    </span>
+                    {task.status === "cancelled" ? (
+                      <span className="pill" style={{ backgroundColor: "#c62828", color: "#fff" }}>cancelled</span>
+                    ) : (
+                      <StageBadge stage={itemStage(task.order_stage ?? "placed", task.status === "packed" || task.status === "completed")} />
+                    )}
                   </td>
                   <td>
-                    {isOpen(task.status) ? (
+                    {isOpen(task.status) && task.order_stage === "placed" ? (
+                      <small>Awaiting admin approval</small>
+                    ) : isOpen(task.status) ? (
                       <>
                         <ActionButton label="Mark item packed" busyLabel="Saving..." onAction={markTaskPacked.bind(null, task.id)} />
                       </>

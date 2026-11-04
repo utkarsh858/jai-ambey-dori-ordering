@@ -2,12 +2,13 @@ import { formatIST } from "@/lib/datetime";
 import type { OrderDetails, OrderLine } from "@/components/OrderDetailsButton";
 
 export const ORDER_COLUMNS =
-  "id,order_number,buyer_code,status,payment_method,total_paise,cancellation_reason,created_at,order_items(item_id,item_name,sku,quantity,unit_price_paise)";
+  "id,order_number,buyer_code,status,stage,payment_method,total_paise,cancellation_reason,created_at,order_items(item_id,item_name,sku,quantity,unit_price_paise)";
 
 type RawOrder = {
   order_number: string;
   buyer_code?: string | null;
   status: string;
+  stage?: string | null;
   payment_method?: string | null;
   total_paise: number;
   cancellation_reason?: string | null;
@@ -25,6 +26,7 @@ export function toOrderDetails(order: RawOrder, includeBuyer: boolean): OrderDet
   return {
     order_number: order.order_number,
     status: order.status,
+    stage: order.stage ?? "placed",
     payment_method: order.payment_method,
     total_paise: order.total_paise,
     created_at_ist: formatIST(order.created_at),

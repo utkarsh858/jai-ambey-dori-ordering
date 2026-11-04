@@ -85,9 +85,9 @@ export function OrderForm({ items, stock }: { items: Item[]; stock: Record<strin
           const gallery = images.filter((i) => !i.is_cover);
           return (
           <div key={item.id} className="item-card" style={{ border: "1px solid #ddd", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: "1rem" }}>
+            <div className="item-row">
               {cover && (
-                <ImageModal src={cover.image_url} alt={cover.alt_text ?? item.name} thumbStyle={{ width: 200, height: 200, flexShrink: 0 }} />
+                <ImageModal src={cover.image_url} alt={cover.alt_text ?? item.name} thumbStyle={{ width: 200, height: 200, maxWidth: "100%", flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
                 <strong style={{ fontSize: "1.1rem" }}>{item.name}</strong>

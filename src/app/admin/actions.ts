@@ -21,6 +21,7 @@ const addItemSchema = z.object({
 const setInventorySchema = z.object({
   itemId: z.uuid(),
   quantity: z.coerce.number().int().min(0),
+  reason: z.string().trim().min(3, "Please give a reason (at least 3 characters)").max(500),
 });
 
 const editItemSchema = z.object({
@@ -92,9 +93,11 @@ export async function setInventoryQuantity(formData: FormData) {
   const input = setInventorySchema.parse(Object.fromEntries(formData));
   const supabase = await createClient();
   
-  const { error } = await supabase
-    .from("inventory")
-    .upsert({ item_id: input.itemId, available_quantity: input.quantity }, { onConflict: "item_id" });
+  const { error } = await supabase.rpc("set_inventory_quantity", {
+    p_item_id: input.itemId,
+    p_new_quantity: input.quantity,
+    p_reason: input.reason,
+  });
   
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
@@ -203,6 +206,24 @@ export async function editItem(formData: FormData) {
 export async function cancelOrderAsAdmin(orderId: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_order", { p_order_id: z.uuid().parse(orderId), p_reason: "Cancelled by admin" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/buyer");
+  revalidatePath("/manager");
+}
+
+export async function approveOrder(orderId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("approve_order", { p_order_id: z.uuid().parse(orderId) });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/buyer");
+  revalidatePath("/manager");
+}
+
+export async function approveOrderDispatch(orderId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("approve_order_dispatch", { p_order_id: z.uuid().parse(orderId) });
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
   revalidatePath("/buyer");

@@ -2,9 +2,10 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
-import { assignManagerToItem, removeManagerFromItem, markOrderComplete, cancelOrderAsAdmin } from "./actions";
+import { assignManagerToItem, removeManagerFromItem, markOrderComplete, cancelOrderAsAdmin, approveOrder, approveOrderDispatch } from "./actions";
 import { AddItemForm } from "./add-item-form";
 import { InventoryAdjuster } from "./inventory-adjuster";
+import { StageBadge } from "@/components/StageBadge";
 import { ActionButton } from "@/components/ActionButton";
 import { ImageUploader } from "./image-uploader";
 import { EditItemSection } from "./edit-item-section";
@@ -115,6 +116,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   <span style={{ color: order.status === "completed" ? "#4caf50" : order.status === "cancelled" ? "#c62828" : "#ff9800" }}>
                     {order.status}
                   </span>
+                  {" · "}<StageBadge stage={order.stage ?? "placed"} />
                   {" · "}₹{(order.total_paise / 100).toFixed(2)}
                   <br />
                   <small>Buyer {order.buyer_code} · {formatIST(order.created_at)}</small>
@@ -128,6 +130,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     </p>
                   );
                 })()}
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                {order.status !== "completed" && order.status !== "cancelled" && order.stage === "placed" && (
+                  <ActionButton label="Approve order" busyLabel="Approving..." onAction={approveOrder.bind(null, order.id)} />
+                )}
+                {order.status !== "completed" && order.status !== "cancelled" && order.stage === "packed_ready" && (
+                  <ActionButton label="Approve for dispatch" busyLabel="Approving..." onAction={approveOrderDispatch.bind(null, order.id)} />
+                )}
                 {order.status !== "completed" && order.status !== "cancelled" && (
                   <ActionButton label="Cancel order" busyLabel="Cancelling..." danger confirmText={`Cancel order ${order.order_number}? Stock will be released.`} onAction={cancelOrderAsAdmin.bind(null, order.id)} />
                 )}
@@ -139,6 +148,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     </button>
                   </form>
                 )}
+                </div>
               </div>
             ))
           ) : (

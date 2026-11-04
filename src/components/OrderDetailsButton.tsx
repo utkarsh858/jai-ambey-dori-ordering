@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { STAGES, itemStage, stageColor, stageIndex, stageLabel } from "@/lib/stages";
 
 export type OrderLine = { item_name: string; sku: string; quantity: number; unit_price_paise: number; packed?: boolean };
 export type OrderDetails = {
   order_number: string;
   status: string;
+  stage?: string | null;
   payment_method?: string | null;
   total_paise: number;
   created_at_ist: string;
@@ -16,6 +18,8 @@ export type OrderDetails = {
 
 export function OrderDetailsButton({ order }: { order: OrderDetails }) {
   const [open, setOpen] = useState(false);
+  const stage = order.stage ?? "placed";
+  const cancelled = order.status === "cancelled";
   const hasPacking = order.lines.some((l) => l.packed !== undefined);
 
   useEffect(() => {
@@ -58,9 +62,19 @@ export function OrderDetailsButton({ order }: { order: OrderDetails }) {
               {order.buyer_code && (<><br /><strong>Buyer code:</strong> {order.buyer_code}</>)}
               {order.cancellation_reason && (<><br /><strong>Cancellation reason:</strong> {order.cancellation_reason}</>)}
             </p>
+            {!cancelled && (
+              <ol style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", listStyle: "none", padding: 0, margin: "0 0 1rem" }}>
+                {STAGES.map((s, i) => (
+                  <li key={s.key} style={{ padding: "0.25rem 0.6rem", borderRadius: 999, fontSize: "0.8rem", fontWeight: 700, background: i <= stageIndex(stage) ? stageColor(stage) : "#eee", color: i <= stageIndex(stage) ? "#fff" : "#777" }}>
+                    {s.label}
+                  </li>
+                ))}
+              </ol>
+            )}
+            <div className="table-scroll">
             <table style={{ width: "100%" }}>
               <thead>
-                <tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Subtotal</th>{hasPacking && <th>Packed</th>}</tr>
+                <tr><th>Item</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Subtotal</th>{hasPacking && <th>Stage</th>}</tr>
               </thead>
               <tbody>
                 {order.lines.map((line, i) => (
@@ -71,12 +85,16 @@ export function OrderDetailsButton({ order }: { order: OrderDetails }) {
                     <td>₹{(line.unit_price_paise / 100).toFixed(2)}</td>
                     <td>₹{((line.unit_price_paise * line.quantity) / 100).toFixed(2)}</td>
                     {hasPacking && (
-                      <td style={{ color: line.packed ? "#2e7d32" : "#c62828", fontWeight: 700 }}>{line.packed ? "✓ Packed" : "✗ Not packed"}</td>
+                      <td style={{ color: line.packed ? "#2e7d32" : "#c62828", fontWeight: 700 }}>
+                        {line.packed ? "✓ Packed · " : "✗ Not packed · "}
+                        <span style={{ color: stageColor(itemStage(stage, !!line.packed)) }}>{stageLabel(itemStage(stage, !!line.packed))}</span>
+                      </td>
                     )}
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
             <p style={{ textAlign: "right", fontWeight: 700 }}>Total: ₹{(order.total_paise / 100).toFixed(2)}</p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { stageLabel } from "@/lib/stages";
 import { formatIST } from "@/lib/datetime";
 
 const BATCH = 1000;
@@ -35,8 +36,8 @@ export async function GET(request: Request) {
   let columns: string;
   if (role === "admin" || role === "buyer") {
     table = "orders";
-    columns = "order_number,buyer_code,status,payment_method,total_paise,created_at,order_items(item_name,sku,quantity)";
-    header = ["Order number", "Buyer code", "Status", "Payment method", "Total (INR)", "Items (name x quantity)", "Date & time (IST)"];
+    columns = "order_number,buyer_code,status,stage,payment_method,total_paise,created_at,order_items(item_name,sku,quantity)";
+    header = ["Order number", "Buyer code", "Status", "Stage", "Payment method", "Total (INR)", "Items (name x quantity)", "Date & time (IST)"];
   } else if (role === "item_manager") {
     table = "packing_tasks";
     columns = "order_number,buyer_code,item_name,quantity,status,created_at";
@@ -61,13 +62,15 @@ export async function GET(request: Request) {
     if (batch.length < BATCH) break;
   }
 
-  const lines = [header.map(csvCell).join(",")];
+  const hideBuyerCode = role === "buyer" && table === "orders";
+  const keep = (cells: unknown[]) => (hideBuyerCode ? cells.filter((_, i) => i !== 1) : cells);
+  const lines = [keep(header).map(csvCell).join(",")];
   for (const row of rows) {
     const cells =
       table === "orders"
-        ? [row.order_number, row.buyer_code, row.status, row.payment_method, (Number(row.total_paise) / 100).toFixed(2), formatItems(row.order_items), formatIST(row.created_at as string)]
+        ? [row.order_number, row.buyer_code, row.status, stageLabel(row.stage as string), row.payment_method, (Number(row.total_paise) / 100).toFixed(2), formatItems(row.order_items), formatIST(row.created_at as string)]
         : [row.order_number, row.buyer_code, row.item_name, row.quantity, row.status, formatIST(row.created_at as string)];
-    lines.push(cells.map(csvCell).join(","));
+    lines.push(keep(cells).map(csvCell).join(","));
   }
 
   return new NextResponse("\uFEFF" + lines.join("\r\n"), {

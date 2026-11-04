@@ -13,6 +13,7 @@ interface InventoryItemProps {
 export function InventoryAdjuster({ itemId, itemName, itemSku, currentQuantity }: InventoryItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [quantity, setQuantity] = useState(currentQuantity.toString());
+  const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,10 +24,12 @@ export function InventoryAdjuster({ itemId, itemName, itemSku, currentQuantity }
     const formData = new FormData();
     formData.append("itemId", itemId);
     formData.append("quantity", quantity);
+    formData.append("reason", reason);
 
     try {
       await setInventoryQuantity(formData);
       setIsEditing(false);
+      setReason("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update inventory");
     } finally {
@@ -55,6 +58,9 @@ export function InventoryAdjuster({ itemId, itemName, itemSku, currentQuantity }
           <button onClick={() => setIsEditing(true)} className="link-button">
             Edit
           </button>
+          <a href={`/api/inventory/history?itemId=${itemId}`} className="link-button" style={{ display: "block", fontSize: "0.85rem", color: "var(--accent)" }}>
+            Download history
+          </a>
         </div>
       </div>
     );
@@ -72,7 +78,7 @@ export function InventoryAdjuster({ itemId, itemName, itemSku, currentQuantity }
       <div>
         <strong>{itemName}</strong> <small>({itemSku})</small>
       </div>
-      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+      <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="number"
           value={quantity}
@@ -80,7 +86,16 @@ export function InventoryAdjuster({ itemId, itemName, itemSku, currentQuantity }
           min="0"
           style={{ width: "100px" }}
         />
-        <button onClick={handleSave} disabled={loading} className="primary" style={{ padding: "0.5rem 1rem" }}>
+        <input
+          type="text"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Reason for change (required)"
+          maxLength={500}
+          required
+          style={{ flex: 1, minWidth: "12rem" }}
+        />
+        <button onClick={handleSave} disabled={loading || reason.trim().length < 3} className="primary" style={{ padding: "0.5rem 1rem" }}>
           {loading ? "Saving..." : "Save"}
         </button>
         <button onClick={() => setIsEditing(false)} className="secondary" style={{ padding: "0.5rem 1rem" }}>

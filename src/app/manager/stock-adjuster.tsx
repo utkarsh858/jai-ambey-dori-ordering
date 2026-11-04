@@ -50,7 +50,7 @@ export function ManagerStockAdjuster({ itemId }: ManagerStockAdjusterProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.75rem", backgroundColor: "#f5f5f5", borderRadius: "4px", minWidth: "300px" }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "0.75rem", backgroundColor: "#f5f5f5", borderRadius: "4px", minWidth: "min(300px, 100%)" }}>
       {error && <p style={{ color: "#d32f2f", margin: 0, fontSize: "0.9rem" }}>{error}</p>}
       
       <div>
